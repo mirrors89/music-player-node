@@ -25,12 +25,12 @@ class Song {
   }
 
   /**
-   * Get all songs ordered by play order (only today's songs)
+   * Get all songs ordered by play order (only today's songs, Asia/Seoul timezone)
    */
   static findAll() {
     const stmt = db.prepare(`
       SELECT * FROM songs
-      WHERE DATE(created_at) = DATE('now')
+      WHERE DATE(created_at, '+9 hours') = DATE('now', '+9 hours')
       ORDER BY play_order ASC
     `);
     const songs = stmt.all();
@@ -38,13 +38,13 @@ class Song {
   }
 
   /**
-   * Get unplayed songs ordered by play order (only today's songs)
+   * Get unplayed songs ordered by play order (only today's songs, Asia/Seoul timezone)
    */
   static findUnplayed() {
     const stmt = db.prepare(`
       SELECT * FROM songs
       WHERE is_played = 0
-      AND DATE(created_at) = DATE('now')
+      AND DATE(created_at, '+9 hours') = DATE('now', '+9 hours')
       ORDER BY play_order ASC
     `);
     const songs = stmt.all();
@@ -52,13 +52,13 @@ class Song {
   }
 
   /**
-   * Get first unplayed song (current song, only today's songs)
+   * Get first unplayed song (current song, only today's songs, Asia/Seoul timezone)
    */
   static findCurrent() {
     const stmt = db.prepare(`
       SELECT * FROM songs
       WHERE is_played = 0
-      AND DATE(created_at) = DATE('now')
+      AND DATE(created_at, '+9 hours') = DATE('now', '+9 hours')
       ORDER BY play_order ASC
       LIMIT 1
     `);
@@ -90,25 +90,25 @@ class Song {
   }
 
   /**
-   * Get max play order value (only today's songs)
+   * Get max play order value (only today's songs, Asia/Seoul timezone)
    */
   static getMaxPlayOrder() {
     const stmt = db.prepare(`
       SELECT COALESCE(MAX(play_order), 0) as max_order FROM songs
-      WHERE DATE(created_at) = DATE('now')
+      WHERE DATE(created_at, '+9 hours') = DATE('now', '+9 hours')
     `);
     const result = stmt.get();
     return result.max_order;
   }
 
   /**
-   * Count unplayed songs (only today's songs)
+   * Count unplayed songs (only today's songs, Asia/Seoul timezone)
    */
   static countUnplayed() {
     const stmt = db.prepare(`
       SELECT COUNT(*) as count FROM songs
       WHERE is_played = 0
-      AND DATE(created_at) = DATE('now')
+      AND DATE(created_at, '+9 hours') = DATE('now', '+9 hours')
     `);
     const result = stmt.get();
     return result.count;
