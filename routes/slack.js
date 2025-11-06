@@ -1,15 +1,40 @@
 const express = require('express');
-const router = express.Router();
 
 function initializeRouter(slackApp) {
+  const router = express.Router();
+
   if (!slackApp) {
     console.warn('Slack app not initialized. Slack routes will not be available.');
+    router.all('*', (req, res) => {
+      res.status(503).json({
+        error: 'Slack integration is not initialized',
+        message: 'Please configure SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET'
+      });
+    });
     return router;
   }
 
-  // Use the ExpressReceiver's router directly
-  // The receiver already handles /slack/events path
-  return slackApp.receiver.router;
+  // Add error logging middleware
+  router.use((req, res, next) => {
+    console.log(`[Slack] ${req.method} ${req.path}`);
+    console.log('[Slack] Headers:', JSON.stringify(req.headers, null, 2));
+    next();
+  });
+
+  // Mount the Slack receiver's router
+  // The receiver handles /events endpoint internally
+  router.use(slackApp.receiver.router);
+
+  // Error handler
+  router.use((err, req, res, next) => {
+    console.error('[Slack] Error:', err);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: err.message
+    });
+  });
+
+  return router;
 }
 
-module.exports = { router, initializeRouter };
+module.exports = { initializeRouter };

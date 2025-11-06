@@ -9,10 +9,10 @@ function initializeSlackApp() {
   }
 
   // Use ExpressReceiver for Express integration
-  // Setting endpoints to '/events' so when mounted on /slack, it becomes /slack/events
   const receiver = new ExpressReceiver({
     signingSecret: process.env.SLACK_SIGNING_SECRET,
-    endpoints: '/events'
+    endpoints: '/events',
+    processBeforeResponse: true
   });
 
   slackApp = new App({
