@@ -8,7 +8,7 @@ class PlaylistService {
   /**
    * Add a new song to the playlist
    */
-  addSong(youtubeSearchResult) {
+  addSong(youtubeSearchResult, requester = null) {
     const maxOrder = Song.getMaxPlayOrder();
     const playOrder = maxOrder + 1;
 
@@ -18,7 +18,9 @@ class PlaylistService {
       channelTitle: youtubeSearchResult.channelTitle,
       thumbnailUrl: youtubeSearchResult.thumbnailUrl,
       duration: youtubeSearchResult.duration,
-      playOrder: playOrder
+      playOrder: playOrder,
+      requestedByUserId: requester?.userId,
+      requestedByUserName: requester?.userName
     });
 
     // Broadcast update to all connected clients

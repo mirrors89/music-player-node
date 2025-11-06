@@ -38,8 +38,12 @@ class SlackCommandHandler {
           return;
         }
 
-        // Add to playlist
-        const song = this.playlistService.addSong(videoDetails);
+        // Add to playlist with requester info
+        const requester = {
+          userId: command.user_id,
+          userName: command.user_name
+        };
+        const song = this.playlistService.addSong(videoDetails, requester);
 
         // Post confirmation to channel
         await say({
@@ -49,7 +53,7 @@ class SlackCommandHandler {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `*${song.title}*\n${song.channelTitle}\n재생 순서: ${song.playOrder}`
+                text: `*${song.title}*\n${song.channelTitle}\n재생 순서: ${song.playOrder}\n신청자: ${song.requestedByUserName}`
               },
               accessory: song.thumbnailUrl ? {
                 type: 'image',
@@ -146,9 +150,9 @@ class SlackCommandHandler {
       await ack();
 
       try {
-        const songs = this.playlistService.getUnplayedSongs();
+        const allSongs = this.playlistService.getAllSongs();
 
-        if (songs.length === 0) {
+        if (allSongs.length === 0) {
           await say({
             text: '플레이리스트가 비어있습니다.',
             response_type: 'ephemeral'
@@ -156,16 +160,39 @@ class SlackCommandHandler {
           return;
         }
 
-        const displaySongs = songs.slice(0, 10);
-        let text = '*현재 플레이리스트:*\n\n';
+        // Separate unplayed and played songs
+        const unplayedSongs = allSongs.filter(song => !song.isPlayed);
+        const playedSongs = allSongs.filter(song => song.isPlayed);
 
-        displaySongs.forEach(song => {
-          text += `${song.playOrder}. ${song.title} - ${song.channelTitle}\n`;
-        });
+        let text = '';
 
-        if (songs.length > 10) {
-          text += `\n...외 ${songs.length - 10}개`;
+        // Show unplayed songs
+        if (unplayedSongs.length > 0) {
+          text += '*📋 대기 중인 곡:*\n\n';
+          const displayUnplayed = unplayedSongs.slice(0, 10);
+          displayUnplayed.forEach(song => {
+            const requester = song.requestedByUserName ? ` (신청: ${song.requestedByUserName})` : '';
+            text += `${song.playOrder}. ${song.title} - ${song.channelTitle}${requester}\n`;
+          });
+          if (unplayedSongs.length > 10) {
+            text += `\n...외 ${unplayedSongs.length - 10}개\n`;
+          }
         }
+
+        // Show played songs
+        if (playedSongs.length > 0) {
+          text += '\n*✅ 재생 완료:*\n\n';
+          const displayPlayed = playedSongs.slice(-5).reverse(); // Show last 5 played songs
+          displayPlayed.forEach(song => {
+            const requester = song.requestedByUserName ? ` (신청: ${song.requestedByUserName})` : '';
+            text += `~~${song.playOrder}. ${song.title} - ${song.channelTitle}${requester}~~\n`;
+          });
+          if (playedSongs.length > 5) {
+            text += `\n...외 ${playedSongs.length - 5}개\n`;
+          }
+        }
+
+        text += `\n*총 ${unplayedSongs.length}곡 대기 중, ${playedSongs.length}곡 재생 완료*`;
 
         await say({
           text: text,
@@ -181,7 +208,7 @@ class SlackCommandHandler {
     });
 
     // Button action handler: Add to playlist from search results
-    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, say }) => {
+    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, say, body }) => {
       await ack();
 
       try {
@@ -198,8 +225,12 @@ class SlackCommandHandler {
           return;
         }
 
-        // Add to playlist
-        const song = this.playlistService.addSong(videoDetails);
+        // Add to playlist with requester info
+        const requester = {
+          userId: body.user.id,
+          userName: body.user.name
+        };
+        const song = this.playlistService.addSong(videoDetails, requester);
 
         // Post confirmation to channel
         await say({
@@ -209,7 +240,7 @@ class SlackCommandHandler {
               type: 'section',
               text: {
                 type: 'mrkdwn',
-                text: `*${song.title}*\n${song.channelTitle}\n재생 순서: ${song.playOrder}`
+                text: `*${song.title}*\n${song.channelTitle}\n재생 순서: ${song.playOrder}\n신청자: ${song.requestedByUserName}`
               },
               accessory: song.thumbnailUrl ? {
                 type: 'image',

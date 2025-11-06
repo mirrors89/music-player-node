@@ -7,6 +7,8 @@ Node.js Express 기반의 YouTube 음악 플레이어 웹 서비스입니다. Sl
 - YouTube 영상 재생 및 재생목록 관리
 - 실시간 WebSocket(Socket.IO)을 통한 재생목록 업데이트
 - Slack 봇 통합 (명령어를 통한 곡 추가 및 검색)
+- 곡 신청자 추적 기능 (Slack 사용자 이름 기록)
+- 일일 플레이리스트 (날짜별로 자동 필터링)
 - iPad/태블릿 친화적인 플레이어 UI
 - SQLite 파일 기반 데이터베이스
 
@@ -177,7 +179,7 @@ YouTube에서 곡을 검색하고 결과 중 하나를 선택하여 추가할 �
 특정 곡 삭제
 
 #### GET `/api/playlist/count`
-미재생 곡 개수 조회
+미재생 곡 개수 조회 (오늘 날짜 기준)
 
 **응답 예시**:
 ```json
@@ -215,6 +217,26 @@ YouTube에서 곡을 검색하고 결과 중 하나를 선택하여 추가할 �
 | is_played | INTEGER | 재생 완료 여부 (0 or 1) |
 | created_at | TEXT | 생성 시간 |
 | played_at | TEXT | 재생 완료 시간 |
+| requested_by_user_id | TEXT | 신청자 Slack User ID |
+| requested_by_user_name | TEXT | 신청자 Slack User Name |
+
+## 일일 플레이리스트
+
+플레이리스트는 날짜별로 자동으로 필터링됩니다:
+- 모든 조회 API는 오늘 날짜(`DATE(created_at) = DATE('now')`)의 곡만 반환합니다
+- 매일 자정이 지나면 자동으로 새로운 플레이리스트로 초기화됩니다
+- 과거 데이터는 데이터베이스에 그대로 남아있어 필요시 조회 가능합니다
+- `play_order`는 매일 1부터 다시 시작됩니다
+
+### 동작 방식
+
+```sql
+-- 예시: 오늘 날짜의 미재생 곡만 조회
+SELECT * FROM songs
+WHERE is_played = 0
+AND DATE(created_at) = DATE('now')
+ORDER BY play_order ASC
+```
 
 ## 개발
 

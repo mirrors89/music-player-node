@@ -154,6 +154,30 @@
             color: white;
         }
 
+        .playlist-item.played {
+            opacity: 0.6;
+            background: #e8e8e8;
+        }
+
+        .playlist-item.played .playlist-item-title,
+        .playlist-item.played .playlist-item-channel {
+            text-decoration: line-through;
+        }
+
+        .playlist-section-header {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            padding-left: 5px;
+            border-left: 4px solid #667eea;
+            color: #667eea;
+        }
+
+        .playlist-section-header.completed {
+            border-left-color: #28a745;
+            color: #28a745;
+        }
+
         .playlist-item-info {
             flex: 1;
         }
@@ -168,11 +192,31 @@
             opacity: 0.8;
         }
 
+        .playlist-item-requester {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .playlist-item.current .playlist-item-requester {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
         .playlist-item-order {
             font-size: 1.5em;
             font-weight: bold;
             margin-right: 15px;
             opacity: 0.5;
+        }
+
+        .playlist-stats {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
         }
 
         .status {
@@ -366,25 +410,69 @@
 
     async function loadPlaylist() {
         try {
-            const response = await fetch(`${API_BASE}/unplayed`);
-            const songs = await response.json();
+            const response = await fetch(`${API_BASE}`);
+            const allSongs = await response.json();
 
             const playlistElement = document.getElementById('playlist');
 
-            if (songs.length === 0) {
+            if (allSongs.length === 0) {
                 playlistElement.innerHTML = '<p style="text-align: center; color: #999;">재생목록이 비어있습니다</p>';
                 return;
             }
 
-            playlistElement.innerHTML = songs.map((song, index) => `
-                    <div class="playlist-item ${index === 0 ? 'current' : ''}">
-                        <span class="playlist-item-order">${song.playOrder}</span>
-                        <div class="playlist-item-info">
-                            <div class="playlist-item-title">${song.title}</div>
-                            <div class="playlist-item-channel">${song.channelTitle}</div>
+            // Separate unplayed and played songs
+            const unplayedSongs = allSongs.filter(song => !song.isPlayed);
+            const playedSongs = allSongs.filter(song => song.isPlayed);
+
+            let html = '';
+
+            // Show unplayed songs
+            if (unplayedSongs.length > 0) {
+                html += '<div class="playlist-section-header">📋 대기 중인 곡</div>';
+                html += unplayedSongs.map((song, index) => {
+                    const requester = song.requestedByUserName ?
+                        `<div class="playlist-item-requester">신청: ${song.requestedByUserName}</div>` : '';
+                    return `
+                        <div class="playlist-item ${index === 0 ? 'current' : ''}">
+                            <span class="playlist-item-order">${song.playOrder}</span>
+                            <div class="playlist-item-info">
+                                <div class="playlist-item-title">${song.title}</div>
+                                <div class="playlist-item-channel">${song.channelTitle}</div>
+                                ${requester}
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+            }
+
+            // Show played songs (last 10)
+            if (playedSongs.length > 0) {
+                html += '<div class="playlist-section-header completed">✅ 재생 완료</div>';
+                const displayPlayed = playedSongs.slice(-10).reverse();
+                html += displayPlayed.map(song => {
+                    const requester = song.requestedByUserName ?
+                        `<div class="playlist-item-requester">신청: ${song.requestedByUserName}</div>` : '';
+                    return `
+                        <div class="playlist-item played">
+                            <span class="playlist-item-order">${song.playOrder}</span>
+                            <div class="playlist-item-info">
+                                <div class="playlist-item-title">${song.title}</div>
+                                <div class="playlist-item-channel">${song.channelTitle}</div>
+                                ${requester}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Add stats
+            html += `
+                <div class="playlist-stats">
+                    총 ${unplayedSongs.length}곡 대기 중, ${playedSongs.length}곡 재생 완료
+                </div>
+            `;
+
+            playlistElement.innerHTML = html;
         } catch (error) {
             console.error('Error loading playlist:', error);
         }

@@ -27,11 +27,28 @@ const createTableSQL = `
     play_order INTEGER NOT NULL,
     is_played INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    played_at TEXT
+    played_at TEXT,
+    requested_by_user_id TEXT,
+    requested_by_user_name TEXT
   )
 `;
 
 db.exec(createTableSQL);
+
+// Migration: Add requested_by columns if they don't exist
+try {
+  db.exec(`ALTER TABLE songs ADD COLUMN requested_by_user_id TEXT`);
+  console.log('Added requested_by_user_id column');
+} catch (e) {
+  // Column already exists, ignore
+}
+
+try {
+  db.exec(`ALTER TABLE songs ADD COLUMN requested_by_user_name TEXT`);
+  console.log('Added requested_by_user_name column');
+} catch (e) {
+  // Column already exists, ignore
+}
 
 console.log('Database initialized at:', dbPath);
 
