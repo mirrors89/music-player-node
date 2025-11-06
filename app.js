@@ -21,8 +21,22 @@ app.set('view engine', 'pug');
 
 // Middleware
 app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Body parser - skip for Slack routes as ExpressReceiver handles its own parsing
+app.use((req, res, next) => {
+  if (req.path.startsWith('/slack')) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/slack')) {
+    return next();
+  }
+  express.urlencoded({ extended: false })(req, res, next);
+});
+
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors());
