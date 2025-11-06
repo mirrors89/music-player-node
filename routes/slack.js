@@ -7,19 +7,9 @@ function initializeRouter(slackApp) {
     return router;
   }
 
-  // Slack events endpoint - handles all Slack interactions
-  router.post('/events', async (req, res) => {
-    try {
-      // Let Slack Bolt handle the request
-      const receiver = slackApp.receiver;
-      await receiver.requestHandler(req, res);
-    } catch (error) {
-      console.error('Error handling Slack event:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  return router;
+  // Use the ExpressReceiver's router directly
+  // The receiver already handles /slack/events path
+  return slackApp.receiver.router;
 }
 
 module.exports = { router, initializeRouter };

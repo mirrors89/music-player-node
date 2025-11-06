@@ -61,6 +61,7 @@ app.use('/api/playlist', initPlaylistRouter(playlistService));
 if (slackApp) {
   const { initializeRouter: initSlackRouter } = require('../routes/slack');
   app.use('/slack', initSlackRouter(slackApp));
+  console.log('Routes slack added');
 }
 
 console.log('Routes initialized');
