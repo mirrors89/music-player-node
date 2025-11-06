@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전자금융업앤다운 🎵💰</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .player-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px;
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .current-song {
+            text-align: center;
+            padding: 20px;
+            background: #f7f7f7;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .current-song h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .current-song p {
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .playlist-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .playlist-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .playlist {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .playlist-item {
+            padding: 15px;
+            background: #f7f7f7;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .playlist-item.current {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .playlist-item-info {
+            flex: 1;
+        }
+
+        .playlist-item-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .playlist-item-channel {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .playlist-item-order {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-right: 15px;
+            opacity: 0.5;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .player-section, .playlist-section {
+                padding: 20px;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>💰🎵 전자금융업앤다운 🎵💰</h1>
+        <p>캐치테이블 페이의 전자금융도, 음악도 업앤다운!</p>
+    </div>
+
+    <div class="player-section">
+        <div class="video-container" id="videoContainer">
+            <div id="player"></div>
+        </div>
+
+        <div class="current-song" id="currentSongInfo">
+            <h2>재생할 노래가 없습니다</h2>
+            <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="loadCurrentSong()" id="loadBtn">노래 불러오기</button>
+            <button class="btn btn-success" onclick="playNext()" id="nextBtn" disabled>다음 곡</button>
+            <button class="btn btn-danger" onclick="stopPlayer()" id="stopBtn" disabled>정지</button>
+        </div>
+    </div>
+
+    <div class="playlist-section">
+        <h2>재생목록</h2>
+        <div class="playlist" id="playlist">
+            <p style="text-align: center; color: #999;">재생목록을 불러오는 중...</p>
+        </div>
+    </div>
+
+    <div class="status" id="status">
+        준비 완료
+    </div>
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    let player;
+    let currentSong = null;
+    const API_BASE = window.location.origin + '/api/playlist';
+    let socket = null;
+
+    // Socket.IO 연결
+    function connectWebSocket() {
+        socket = io();
+
+        socket.on('connect', function() {
+            console.log('Socket.IO 연결됨');
+            updateStatus('실시간 연결 완료');
+        });
+
+        socket.on('disconnect', function() {
+            console.log('Socket.IO 연결 끊김');
+            updateStatus('실시간 연결 끊김');
+        });
+
+        socket.on('playlist-update', function(data) {
+            console.log('재생목록 업데이트:', data);
+            updateStatus('새로운 노래가 추가되었습니다!');
+            loadPlaylist();
+        });
+
+        socket.on('connect_error', function(error) {
+            console.error('WebSocket 연결 오류:', error);
+            updateStatus('실시간 연결 실패 - 수동 새로고침 모드');
+        });
+    }
+
+    // YouTube IFrame API 초기화
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+            height: '100%',
+            width: '100%',
+            playerVars: {
+                'autoplay': 0,
+                'controls': 1,
+                'rel': 0
+            },
+            events: {
+                'onReady': onPlayerReady,
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+
+    function onPlayerReady(event) {
+        updateStatus('플레이어 준비 완료');
+        loadPlaylist();
+        connectWebSocket(); // WebSocket 연결
+        // 백업으로 30초마다 재생목록 갱신 (WebSocket 실패 시 대비)
+        setInterval(loadPlaylist, 30000);
+    }
+
+    function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.ENDED) {
+            updateStatus('재생 완료');
+            playNext();
+        } else if (event.data === YT.PlayerState.PLAYING) {
+            updateStatus('재생 중');
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('nextBtn').disabled = false;
+        } else if (event.data === YT.PlayerState.PAUSED) {
+            updateStatus('일시정지');
+        }
+    }
+
+    async function loadCurrentSong() {
+        try {
+            const response = await fetch(`${API_BASE}/current`);
+            const song = await response.json();
+
+            if (!song || !song.youtubeId) {
+                updateStatus('재생할 노래가 없습니다');
+                document.getElementById('currentSongInfo').innerHTML = `
+                        <h2>재생할 노래가 없습니다</h2>
+                        <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
+                    `;
+                document.getElementById('nextBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = true;
+                return;
+            }
+
+            currentSong = song;
+            player.loadVideoById(song.youtubeId);
+
+            document.getElementById('currentSongInfo').innerHTML = `
+                    <h2>${song.title}</h2>
+                    <p>채널: ${song.channelTitle}</p>
+                    <p>재생 순서: ${song.playOrder}번</p>
+                `;
+
+            updateStatus(`${song.title} 로딩 중...`);
+            loadPlaylist();
+        } catch (error) {
+            console.error('Error loading song:', error);
+            updateStatus('노래를 불러오는데 실패했습니다');
+        }
+    }
+
+    async function playNext() {
+        if (currentSong) {
+            try {
+                await fetch(`${API_BASE}/${currentSong.id}/played`, {
+                    method: 'POST'
+                });
+                updateStatus('다음 곡으로 이동...');
+            } catch (error) {
+                console.error('Error marking as played:', error);
+            }
+        }
+
+        await loadCurrentSong();
+    }
+
+    function stopPlayer() {
+        if (player && player.stopVideo) {
+            player.stopVideo();
+            updateStatus('정지됨');
+        }
+    }
+
+    async function loadPlaylist() {
+        try {
+            const response = await fetch(`${API_BASE}/unplayed`);
+            const songs = await response.json();
+
+            const playlistElement = document.getElementById('playlist');
+
+            if (songs.length === 0) {
+                playlistElement.innerHTML = '<p style="text-align: center; color: #999;">재생목록이 비어있습니다</p>';
+                return;
+            }
+
+            playlistElement.innerHTML = songs.map((song, index) => `
+                    <div class="playlist-item ${index === 0 ? 'current' : ''}">
+                        <span class="playlist-item-order">${song.playOrder}</span>
+                        <div class="playlist-item-info">
+                            <div class="playlist-item-title">${song.title}</div>
+                            <div class="playlist-item-channel">${song.channelTitle}</div>
+                        </div>
+                    </div>
+                `).join('');
+        } catch (error) {
+            console.error('Error loading playlist:', error);
+        }
+    }
+
+    function updateStatus(message) {
+        document.getElementById('status').textContent = message;
+    }
+
+    // 초기 로드
+    if (typeof YT !== 'undefined' && YT.loaded) {
+        onYouTubeIframeAPIReady();
+    }
+</script>
+</body>
+</html>
