@@ -38,10 +38,24 @@ class SlackCommandHandler {
           return;
         }
 
+        // Get user display name from Slack API
+        let displayName = command.user_name;
+        try {
+          const userInfo = await this.slackApp.client.users.info({
+            user: command.user_id
+          });
+          displayName = userInfo.user.profile.display_name ||
+                       userInfo.user.profile.real_name ||
+                       command.user_name;
+        } catch (error) {
+          console.error('Failed to get user display name:', error);
+          // Fallback to username
+        }
+
         // Add to playlist with requester info
         const requester = {
           userId: command.user_id,
-          userName: command.user_name
+          userName: displayName
         };
         const song = this.playlistService.addSong(videoDetails, requester);
 
@@ -203,11 +217,15 @@ class SlackCommandHandler {
       }
     });
 
+    // Debug: Log all action handler registrations
+    console.log('Registering button action handler with pattern: /^add_to_playlist_/');
+
     // Button action handler: Add to playlist from search results
     this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, body, respond, say }) => {
       try {
         await ack();
         console.log('[Button Action] add_to_playlist triggered');
+        console.log('[Button Action] Full action object:', JSON.stringify(action, null, 2));
         console.log('[Button Action] Video ID:', action.value);
         console.log('[Button Action] User:', body.user);
 
@@ -226,10 +244,26 @@ class SlackCommandHandler {
           return;
         }
 
+        // Get user display name from Slack API
+        let displayName = body.user.username || body.user.name;
+        try {
+          const userInfo = await this.slackApp.client.users.info({
+            user: body.user.id
+          });
+          displayName = userInfo.user.profile.display_name ||
+                       userInfo.user.profile.real_name ||
+                       body.user.username ||
+                       body.user.name;
+          console.log('[Button Action] User display name:', displayName);
+        } catch (error) {
+          console.error('[Button Action] Failed to get user display name:', error);
+          // Fallback to username
+        }
+
         // Add to playlist with requester info
         const requester = {
           userId: body.user.id,
-          userName: body.user.username || body.user.name
+          userName: displayName
         };
         console.log('[Button Action] Adding song with requester:', requester);
 

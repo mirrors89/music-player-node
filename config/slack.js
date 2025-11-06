@@ -11,8 +11,8 @@ function initializeSlackApp() {
   // Use ExpressReceiver for Express integration
   const receiver = new ExpressReceiver({
     signingSecret: process.env.SLACK_SIGNING_SECRET,
-    endpoints: '/events',
-    processBeforeResponse: true
+    endpoints: '/events'
+    // Removed processBeforeResponse: true to fix interactive component handling
   });
 
   slackApp = new App({

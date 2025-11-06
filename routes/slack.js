@@ -18,6 +18,15 @@ function initializeRouter(slackApp) {
   router.use((req, res, next) => {
     console.log(`[Slack] ${req.method} ${req.path}`);
     console.log('[Slack] Headers:', JSON.stringify(req.headers, null, 2));
+
+    // Log request body for debugging (only for POST requests)
+    if (req.method === 'POST') {
+      const originalJson = res.json;
+      res.json = function(data) {
+        console.log('[Slack] Response:', JSON.stringify(data, null, 2));
+        originalJson.call(this, data);
+      };
+    }
     next();
   });
 
