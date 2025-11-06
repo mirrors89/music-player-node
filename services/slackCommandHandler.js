@@ -45,7 +45,7 @@ class SlackCommandHandler {
         };
         const song = this.playlistService.addSong(videoDetails, requester);
 
-        // Post confirmation to channel
+        // Post confirmation (visible to everyone in channel)
         await say({
           text: `플레이리스트에 추가되었습니다!`,
           blocks: [
@@ -146,14 +146,12 @@ class SlackCommandHandler {
     });
 
     // Command 3: /playlist - View current playlist
-    this.slackApp.command('/playlist', async ({ command, ack, say }) => {
-      await ack();
-
+    this.slackApp.command('/playlist', async ({ command, ack, respond }) => {
       try {
         const allSongs = this.playlistService.getAllSongs();
 
         if (allSongs.length === 0) {
-          await say({
+          await ack({
             text: '플레이리스트가 비어있습니다.',
             response_type: 'ephemeral'
           });
@@ -194,13 +192,13 @@ class SlackCommandHandler {
 
         text += `\n*총 ${unplayedSongs.length}곡 대기 중, ${playedSongs.length}곡 재생 완료*`;
 
-        await say({
+        await ack({
           text: text,
           response_type: 'ephemeral'
         });
       } catch (error) {
         console.error('Error in /playlist command:', error);
-        await say({
+        await ack({
           text: '플레이리스트를 조회하는 중 오류가 발생했습니다.',
           response_type: 'ephemeral'
         });
@@ -208,19 +206,24 @@ class SlackCommandHandler {
     });
 
     // Button action handler: Add to playlist from search results
-    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, say, body }) => {
-      await ack();
-
+    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, say, body, respond }) => {
       try {
+        await ack();
+        console.log('[Button Action] add_to_playlist triggered');
+        console.log('[Button Action] Video ID:', action.value);
+        console.log('[Button Action] User:', body.user);
+
         const videoId = action.value;
 
         // Get full video details
         const videoDetails = await YouTubeService.getVideoDetails(videoId);
 
         if (!videoDetails) {
-          await say({
+          console.error('[Button Action] Failed to get video details for:', videoId);
+          await respond({
             text: '비디오 정보를 가져올 수 없습니다.',
-            response_type: 'ephemeral'
+            response_type: 'ephemeral',
+            replace_original: false
           });
           return;
         }
@@ -228,13 +231,18 @@ class SlackCommandHandler {
         // Add to playlist with requester info
         const requester = {
           userId: body.user.id,
-          userName: body.user.name
+          userName: body.user.username || body.user.name
         };
-        const song = this.playlistService.addSong(videoDetails, requester);
+        console.log('[Button Action] Adding song with requester:', requester);
 
-        // Post confirmation to channel
-        await say({
+        const song = this.playlistService.addSong(videoDetails, requester);
+        console.log('[Button Action] Song added successfully:', song.id);
+
+        // Post confirmation (visible to everyone in channel)
+        await respond({
           text: `플레이리스트에 추가되었습니다!`,
+          response_type: 'in_channel',
+          replace_original: false,
           blocks: [
             {
               type: 'section',
@@ -251,11 +259,17 @@ class SlackCommandHandler {
           ]
         });
       } catch (error) {
-        console.error('Error in button action handler:', error);
-        await say({
-          text: '플레이리스트에 추가하는 중 오류가 발생했습니다.',
-          response_type: 'ephemeral'
-        });
+        console.error('[Button Action] Error in button action handler:', error);
+        console.error('[Button Action] Error stack:', error.stack);
+        try {
+          await respond({
+            text: '플레이리스트에 추가하는 중 오류가 발생했습니다: ' + error.message,
+            response_type: 'ephemeral',
+            replace_original: false
+          });
+        } catch (respondError) {
+          console.error('[Button Action] Failed to send error response:', respondError);
+        }
       }
     });
 
