@@ -73,14 +73,12 @@ class SlackCommandHandler {
     });
 
     // Command 2: /search-music - YouTube search
-    this.slackApp.command('/search-music', async ({ command, ack, say }) => {
-      await ack();
-
+    this.slackApp.command('/search-music', async ({ command, ack }) => {
       try {
         const query = command.text.trim();
 
         if (!query) {
-          await say({
+          await ack({
             text: '검색어를 입력해주세요.',
             response_type: 'ephemeral'
           });
@@ -90,7 +88,7 @@ class SlackCommandHandler {
         const results = await YouTubeService.search(query, 5);
 
         if (results.length === 0) {
-          await say({
+          await ack({
             text: '검색 결과가 없습니다.',
             response_type: 'ephemeral'
           });
@@ -131,14 +129,14 @@ class SlackCommandHandler {
           });
         });
 
-        await say({
+        await ack({
           text: `"${query}" 검색 결과`,
           blocks: blocks,
           response_type: 'ephemeral'
         });
       } catch (error) {
         console.error('Error in /search-music command:', error);
-        await say({
+        await ack({
           text: 'YouTube 검색 중 오류가 발생했습니다.',
           response_type: 'ephemeral'
         });
@@ -206,7 +204,7 @@ class SlackCommandHandler {
     });
 
     // Button action handler: Add to playlist from search results
-    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, say, body, respond }) => {
+    this.slackApp.action(/^add_to_playlist_/, async ({ action, ack, body, respond, say }) => {
       try {
         await ack();
         console.log('[Button Action] add_to_playlist triggered');
@@ -223,7 +221,7 @@ class SlackCommandHandler {
           await respond({
             text: '비디오 정보를 가져올 수 없습니다.',
             response_type: 'ephemeral',
-            replace_original: false
+            replace_original: true
           });
           return;
         }
@@ -238,11 +236,16 @@ class SlackCommandHandler {
         const song = this.playlistService.addSong(videoDetails, requester);
         console.log('[Button Action] Song added successfully:', song.id);
 
-        // Post confirmation (visible to everyone in channel)
+        // Update the original search message to show it was added
         await respond({
+          text: `✅ 추가 완료: ${song.title}`,
+          response_type: 'ephemeral',
+          replace_original: true
+        });
+
+        // Post confirmation (visible to everyone in channel)
+        await say({
           text: `플레이리스트에 추가되었습니다!`,
-          response_type: 'in_channel',
-          replace_original: false,
           blocks: [
             {
               type: 'section',
@@ -265,7 +268,7 @@ class SlackCommandHandler {
           await respond({
             text: '플레이리스트에 추가하는 중 오류가 발생했습니다: ' + error.message,
             response_type: 'ephemeral',
-            replace_original: false
+            replace_original: true
           });
         } catch (respondError) {
           console.error('[Button Action] Failed to send error response:', respondError);
