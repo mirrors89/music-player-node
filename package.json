@@ -9,6 +9,7 @@
     "dev": "nodemon ./bin/www"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "@slack/bolt": "^4.1.0",
     "axios": "^1.7.2",
     "better-sqlite3": "^11.0.0",
@@ -21,7 +22,8 @@
     "http-errors": "~1.6.3",
     "morgan": "~1.9.1",
     "pug": "2.0.0-beta11",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

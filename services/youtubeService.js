@@ -101,6 +101,7 @@ class YouTubeService {
 
   /**
    * Extract video ID from various YouTube URL formats
+   * Supports: youtube.com, youtu.be, music.youtube.com
    */
   static extractVideoId(input) {
     if (!input) return null;
@@ -111,8 +112,11 @@ class YouTubeService {
       return input;
     }
 
-    // YouTube URL patterns
+    // YouTube URL patterns (including YouTube Music)
     const patterns = [
+      // YouTube Music URLs
+      /music\.youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+      // Standard YouTube URLs
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
       /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/
     ];

@@ -253,17 +253,21 @@
     </div>
 
     <div class="player-section">
-        <div class="video-container" id="videoContainer">
-            <div id="player"></div>
-        </div>
-
         <div class="current-song" id="currentSongInfo">
             <h2>재생할 노래가 없습니다</h2>
             <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
         </div>
 
+        <!-- HTML5 Audio Player (hidden) -->
+        <audio id="audioPlayer" preload="metadata"></audio>
+
+        <!-- Album Art Display -->
+        <div id="albumArt" style="text-align: center; margin: 20px 0; display: none;">
+            <img id="albumArtImg" style="max-width: 300px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);" alt="Album Art">
+        </div>
+
         <div class="controls">
-            <button class="btn btn-primary" onclick="loadCurrentSong()" id="loadBtn">노래 불러오기</button>
+            <button class="btn btn-primary" onclick="handleLoadButton()" id="loadBtn">노래 불러오기</button>
             <button class="btn btn-success" onclick="playNext()" id="nextBtn" disabled>다음 곡</button>
             <button class="btn btn-danger" onclick="stopPlayer()" id="stopBtn" disabled>정지</button>
         </div>
@@ -281,13 +285,13 @@
     </div>
 </div>
 
-<script src="https://www.youtube.com/iframe_api"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-    let player;
+    let audioPlayer;
     let currentSong = null;
     const API_BASE = window.location.origin + '/api/playlist';
     let socket = null;
+    let wakeLock = null;
 
     // Socket.IO 연결
     function connectWebSocket() {
@@ -315,41 +319,185 @@
         });
     }
 
-    // YouTube IFrame API 초기화
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', {
-            height: '100%',
-            width: '100%',
-            playerVars: {
-                'autoplay': 0,
-                'controls': 1,
-                'rel': 0
-            },
-            events: {
-                'onReady': onPlayerReady,
-                'onStateChange': onPlayerStateChange
-            }
-        });
-    }
+    // HTML5 Audio Player 초기화
+    function initAudioPlayer() {
+        audioPlayer = document.getElementById('audioPlayer');
 
-    function onPlayerReady(event) {
+        // Audio 이벤트 리스너
+        audioPlayer.addEventListener('loadedmetadata', () => {
+            console.log('Audio metadata loaded');
+        });
+
+        audioPlayer.addEventListener('canplay', () => {
+            console.log('Audio can play');
+            updateStatus('재생 준비 완료');
+        });
+
+        audioPlayer.addEventListener('playing', () => {
+            console.log('Audio playing');
+            updateStatus('재생 중');
+            document.getElementById('stopBtn').disabled = false;
+            document.getElementById('nextBtn').disabled = false;
+            requestWakeLock(); // 재생 시작 시 Wake Lock 요청
+            updateMediaSession(); // Media Session 업데이트
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            console.log('Audio paused');
+            updateStatus('일시정지');
+            setMediaSessionPaused(); // Media Session 상태 업데이트
+            releaseWakeLock(); // 일시정지 시 Wake Lock 해제
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            console.log('Audio ended - auto playing next track');
+            updateStatus('다음 곡 재생 중...');
+            // Wake Lock은 유지 - 다음 곡이 재생될 때까지
+            playNext();
+        });
+
+        audioPlayer.addEventListener('error', (e) => {
+            console.error('Audio error:', e);
+            updateStatus('재생 오류 발생');
+            releaseWakeLock();
+        });
+
+        audioPlayer.addEventListener('waiting', () => {
+            updateStatus('버퍼링 중...');
+        });
+
         updateStatus('플레이어 준비 완료');
         loadPlaylist();
         connectWebSocket(); // WebSocket 연결
+        setupBackgroundPlayback(); // 백그라운드 재생 설정
         // 백업으로 30초마다 재생목록 갱신 (WebSocket 실패 시 대비)
         setInterval(loadPlaylist, 30000);
     }
 
-    function onPlayerStateChange(event) {
-        if (event.data === YT.PlayerState.ENDED) {
-            updateStatus('재생 완료');
-            playNext();
-        } else if (event.data === YT.PlayerState.PLAYING) {
-            updateStatus('재생 중');
-            document.getElementById('stopBtn').disabled = false;
-            document.getElementById('nextBtn').disabled = false;
-        } else if (event.data === YT.PlayerState.PAUSED) {
-            updateStatus('일시정지');
+    // 백그라운드 재생 설정
+    function setupBackgroundPlayback() {
+        // Visibility API: 페이지가 백그라운드로 가도 재생 유지 시도
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('페이지가 백그라운드로 전환됨');
+                // YouTube IFrame API의 제약으로 완전한 백그라운드 재생은 어려움
+            } else {
+                console.log('페이지가 포그라운드로 전환됨');
+                requestWakeLock(); // 다시 포그라운드로 돌아오면 Wake Lock 요청
+            }
+        });
+
+        // Media Session API 설정 (브라우저의 미디어 컨트롤과 통합)
+        if ('mediaSession' in navigator) {
+            console.log('Media Session API 지원됨');
+            navigator.mediaSession.setActionHandler('play', () => {
+                if (audioPlayer) {
+                    audioPlayer.play().catch(e => console.error('Play failed:', e));
+                }
+            });
+            navigator.mediaSession.setActionHandler('pause', () => {
+                if (audioPlayer) {
+                    audioPlayer.pause();
+                }
+            });
+            navigator.mediaSession.setActionHandler('nexttrack', () => {
+                playNext();
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', () => {
+                // 이전 곡 기능은 현재 구현되지 않음
+            });
+            navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                if (audioPlayer) {
+                    audioPlayer.currentTime = Math.max(audioPlayer.currentTime - (details.seekOffset || 10), 0);
+                }
+            });
+            navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                if (audioPlayer) {
+                    audioPlayer.currentTime = Math.min(audioPlayer.currentTime + (details.seekOffset || 10), audioPlayer.duration);
+                }
+            });
+        }
+    }
+
+    // Media Session 메타데이터 업데이트
+    function updateMediaSession() {
+        if ('mediaSession' in navigator && currentSong) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: currentSong.title,
+                artist: currentSong.channelTitle,
+                album: '전자금융업앤다운',
+                artwork: currentSong.thumbnailUrl ? [
+                    { src: currentSong.thumbnailUrl, sizes: '512x512', type: 'image/jpeg' },
+                    { src: currentSong.thumbnailUrl, sizes: '256x256', type: 'image/jpeg' },
+                    { src: currentSong.thumbnailUrl, sizes: '96x96', type: 'image/jpeg' }
+                ] : []
+            });
+
+            // 재생 상태 명시적으로 설정
+            navigator.mediaSession.playbackState = 'playing';
+            console.log('Media Session 업데이트:', currentSong.title);
+        }
+    }
+
+    // Media Session 상태를 일시정지로 설정
+    function setMediaSessionPaused() {
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+        }
+    }
+
+    // Wake Lock API: 화면이 꺼지지 않도록 방지
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                // 이미 Wake Lock이 활성화되어 있으면 스킵
+                if (wakeLock !== null && !wakeLock.released) {
+                    return;
+                }
+
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock 활성화됨 - 화면이 꺼지지 않습니다');
+
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock 해제됨');
+                });
+            } catch (err) {
+                console.error('Wake Lock 실패:', err);
+            }
+        }
+    }
+
+    // Wake Lock 해제
+    async function releaseWakeLock() {
+        if (wakeLock !== null && !wakeLock.released) {
+            try {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock 수동 해제됨');
+            } catch (err) {
+                console.error('Wake Lock 해제 실패:', err);
+            }
+        }
+    }
+
+    // 버튼 핸들러 - 상태에 따라 재생 또는 새 곡 불러오기
+    async function handleLoadButton() {
+        // 이미 곡이 로드되어 있고 일시정지 상태라면 재생만
+        if (audioPlayer && audioPlayer.src && audioPlayer.paused && currentSong) {
+            try {
+                await audioPlayer.play();
+                console.log('Resumed playback');
+                // 버튼 텍스트 원래대로
+                document.getElementById('loadBtn').textContent = '노래 불러오기';
+                document.getElementById('loadBtn').classList.remove('btn-success');
+                document.getElementById('loadBtn').classList.add('btn-primary');
+            } catch (error) {
+                console.error('Resume failed:', error);
+                updateStatus('재생 실패');
+            }
+        } else {
+            // 새 곡 불러오기
+            await loadCurrentSong();
         }
     }
 
@@ -366,19 +514,66 @@
                     `;
                 document.getElementById('nextBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = true;
+                document.getElementById('albumArt').style.display = 'none';
                 return;
             }
 
             currentSong = song;
-            player.loadVideoById(song.youtubeId);
 
+            // 오디오 스트림 URL 설정
+            const streamUrl = `${window.location.origin}/api/audio/stream/${song.youtubeId}`;
+            audioPlayer.src = streamUrl;
+
+            // 앨범아트 표시
+            if (song.thumbnailUrl) {
+                document.getElementById('albumArtImg').src = song.thumbnailUrl;
+                document.getElementById('albumArt').style.display = 'block';
+            } else {
+                document.getElementById('albumArt').style.display = 'none';
+            }
+
+            // 곡 정보 표시
             document.getElementById('currentSongInfo').innerHTML = `
                     <h2>${song.title}</h2>
                     <p>채널: ${song.channelTitle}</p>
                     <p>재생 순서: ${song.playOrder}번</p>
+                    ${song.requestedByUserName ? `<p>신청자: ${song.requestedByUserName}</p>` : ''}
                 `;
 
             updateStatus(`${song.title} 로딩 중...`);
+
+            // 자동 재생 시도
+            try {
+                console.log('Attempting to play audio...');
+                await audioPlayer.play();
+                console.log('✅ Audio playback started successfully');
+                updateMediaSession(); // 재생 성공 시 Media Session 업데이트
+            } catch (error) {
+                console.error('❌ Autoplay failed:', error.name, error.message);
+
+                // 자동재생 정책으로 차단된 경우
+                if (error.name === 'NotAllowedError') {
+                    updateStatus('▶️ 재생 버튼을 눌러주세요 (자동재생 차단됨)');
+                    // 버튼 활성화
+                    document.getElementById('loadBtn').textContent = '▶️ 재생';
+                    document.getElementById('loadBtn').classList.remove('btn-primary');
+                    document.getElementById('loadBtn').classList.add('btn-success');
+                } else {
+                    // 다른 오류의 경우 재시도
+                    console.log('Retrying playback in 1 second...');
+                    setTimeout(async () => {
+                        try {
+                            await audioPlayer.play();
+                            console.log('✅ Retry successful');
+                            updateMediaSession();
+                        } catch (retryError) {
+                            console.error('❌ Retry failed:', retryError);
+                            updateStatus('재생 실패 - 수동으로 재생해주세요');
+                        }
+                    }, 1000);
+                }
+            }
+
             loadPlaylist();
         } catch (error) {
             console.error('Error loading song:', error);
@@ -402,9 +597,12 @@
     }
 
     function stopPlayer() {
-        if (player && player.stopVideo) {
-            player.stopVideo();
+        if (audioPlayer) {
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
             updateStatus('정지됨');
+            setMediaSessionPaused(); // Media Session 상태 업데이트
+            releaseWakeLock(); // 정지 시 Wake Lock 해제
         }
     }
 
@@ -482,9 +680,11 @@
         document.getElementById('status').textContent = message;
     }
 
-    // 초기 로드
-    if (typeof YT !== 'undefined' && YT.loaded) {
-        onYouTubeIframeAPIReady();
+    // 초기 로드 - 페이지 로드 완료 시 Audio Player 초기화
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initAudioPlayer);
+    } else {
+        initAudioPlayer();
     }
 </script>
 </body>

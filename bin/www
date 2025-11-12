@@ -58,6 +58,11 @@ if (slackApp) {
 const { initializeRouter: initPlaylistRouter } = require('../routes/playlist');
 app.use('/api/playlist', initPlaylistRouter(playlistService));
 
+// Audio streaming routes
+const audioRouter = require('../routes/audio');
+app.use('/api/audio', audioRouter);
+console.log('Routes audio added');
+
 if (slackApp) {
   const { initializeRouter: initSlackRouter } = require('../routes/slack');
   app.use('/slack', initSlackRouter(slackApp));
