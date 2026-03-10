@@ -108,6 +108,10 @@
             background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
         }
 
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
@@ -264,6 +268,7 @@
 
         <div class="controls">
             <button class="btn btn-primary" onclick="loadCurrentSong()" id="loadBtn">노래 불러오기</button>
+            <button class="btn btn-warning" onclick="skipSong()" id="skipBtn" disabled>⏭️ 건너뛰기</button>
             <button class="btn btn-success" onclick="playNext()" id="nextBtn" disabled>다음 곡</button>
             <button class="btn btn-danger" onclick="stopPlayer()" id="stopBtn" disabled>정지</button>
         </div>
@@ -348,6 +353,7 @@
             updateStatus('재생 중');
             document.getElementById('stopBtn').disabled = false;
             document.getElementById('nextBtn').disabled = false;
+            document.getElementById('skipBtn').disabled = false;
         } else if (event.data === YT.PlayerState.PAUSED) {
             updateStatus('일시정지');
         }
@@ -365,6 +371,7 @@
                         <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
                     `;
                 document.getElementById('nextBtn').disabled = true;
+                document.getElementById('skipBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = true;
                 return;
             }
@@ -383,6 +390,48 @@
         } catch (error) {
             console.error('Error loading song:', error);
             updateStatus('노래를 불러오는데 실패했습니다');
+        }
+    }
+
+    async function skipSong() {
+        try {
+            updateStatus('현재 곡 건너뛰는 중...');
+
+            const response = await fetch(`${API_BASE}/skip`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                updateStatus(result.message);
+
+                // If there's a next song, load it automatically
+                if (result.next) {
+                    setTimeout(() => {
+                        loadCurrentSong();
+                    }, 500);
+                } else {
+                    // No more songs
+                    currentSong = null;
+                    player.stopVideo();
+                    document.getElementById('currentSongInfo').innerHTML = `
+                        <h2>재생할 노래가 없습니다</h2>
+                        <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
+                    `;
+                    document.getElementById('nextBtn').disabled = true;
+                    document.getElementById('skipBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = true;
+                }
+            } else {
+                updateStatus(result.message || '건너뛰기 실패');
+            }
+        } catch (error) {
+            console.error('Error skipping song:', error);
+            updateStatus('건너뛰기 실패');
         }
     }
 

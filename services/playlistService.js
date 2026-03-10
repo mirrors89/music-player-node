@@ -84,6 +84,45 @@ class PlaylistService {
   }
 
   /**
+   * Skip current song and move to next
+   * Marks the first unplayed song as played and returns the next song
+   */
+  skipToNext() {
+    const currentSong = this.getCurrentSong();
+
+    if (!currentSong) {
+      return {
+        success: false,
+        message: 'No song to skip'
+      };
+    }
+
+    // Mark current song as played
+    this.markAsPlayed(currentSong.id);
+
+    // Get next song
+    const nextSong = this.getCurrentSong();
+
+    return {
+      success: true,
+      skipped: {
+        id: currentSong.id,
+        title: currentSong.title
+      },
+      next: nextSong ? {
+        id: nextSong.id,
+        title: nextSong.title,
+        youtubeId: nextSong.youtubeId,
+        channelTitle: nextSong.channelTitle,
+        playOrder: nextSong.playOrder
+      } : null,
+      message: nextSong
+        ? `"${currentSong.title}" 건너뛰기 완료. 다음 곡: "${nextSong.title}"`
+        : `"${currentSong.title}" 건너뛰기 완료. 재생목록이 비어있습니다.`
+    };
+  }
+
+  /**
    * Broadcast playlist update to all connected WebSocket clients
    */
   broadcastUpdate() {

@@ -53,13 +53,31 @@ router.get('/current', (req, res) => {
 });
 
 /**
+ * POST /api/playlist/skip - Skip current song and move to next
+ */
+router.post('/skip', (req, res) => {
+  try {
+    const result = playlistService.skipToNext();
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json({ error: result.message });
+    }
+  } catch (error) {
+    console.error('Error skipping song:', error);
+    res.status(500).json({ error: 'Failed to skip song' });
+  }
+});
+
+/**
  * POST /api/playlist/:songId/played - Mark song as played
  */
 router.post('/:songId/played', (req, res) => {
   try {
     const songId = parseInt(req.params.songId);
     const song = playlistService.markAsPlayed(songId);
-    
+
     if (song) {
       res.json(song);
     } else {
