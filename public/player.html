@@ -350,6 +350,7 @@
     let currentSong = null;
     const API_BASE = window.location.origin + '/api/playlist';
     let socket = null;
+    let isIdle = true; // 재생 중이 아닐 때 true (큐가 비어 자동 재개 대기)
 
     // Socket.IO 연결
     function connectWebSocket() {
@@ -369,6 +370,20 @@
             console.log('재생목록 업데이트:', data);
             updateStatus('새로운 노래가 추가되었습니다!');
             loadPlaylist();
+
+            // idle 상태에서 새 곡이 들어오면 자동 재생 (resume 이벤트 누락 시 fallback)
+            if (isIdle && data && data.count > 0) {
+                console.log('idle 상태에서 새 곡 감지 → 자동 재생');
+                autoResumePlayback();
+            }
+        });
+
+        socket.on('playlist-resume', function(data) {
+            console.log('재생 재개 신호 수신:', data);
+            if (isIdle) {
+                updateStatus('새 곡이 추가되어 자동 재생합니다');
+                autoResumePlayback();
+            }
         });
 
         socket.on('connect_error', function(error) {
@@ -431,11 +446,24 @@
             playNext();
         } else if (event.data === YT.PlayerState.PLAYING) {
             updateStatus('재생 중');
+            isIdle = false;
             document.getElementById('stopBtn').disabled = false;
             document.getElementById('nextBtn').disabled = false;
             document.getElementById('skipBtn').disabled = false;
         } else if (event.data === YT.PlayerState.PAUSED) {
             updateStatus('일시정지');
+        }
+    }
+
+    // 큐가 비었다가 새 곡이 들어왔을 때 자동 재생
+    async function autoResumePlayback() {
+        if (!isIdle) return;
+        isIdle = false; // 중복 호출 방지
+        try {
+            await loadCurrentSong();
+        } catch (error) {
+            console.error('자동 재생 실패:', error);
+            isIdle = true; // 실패 시 다음 신호를 받을 수 있도록 복구
         }
     }
 
@@ -446,6 +474,8 @@
 
             if (!song || !song.youtubeId) {
                 updateStatus('재생할 노래가 없습니다');
+                currentSong = null;
+                isIdle = true;
                 document.getElementById('currentSongInfo').innerHTML = `
                         <h2>재생할 노래가 없습니다</h2>
                         <p>슬랙에서 <code>/search-music 노래제목</code> 명령어로 노래를 추가해보세요!</p>
@@ -457,6 +487,7 @@
             }
 
             currentSong = song;
+            isIdle = false;
             player.loadVideoById(song.youtubeId);
 
             document.getElementById('currentSongInfo').innerHTML = `
@@ -497,6 +528,7 @@
                 } else {
                     // No more songs
                     currentSong = null;
+                    isIdle = true;
                     player.stopVideo();
                     document.getElementById('currentSongInfo').innerHTML = `
                         <h2>재생할 노래가 없습니다</h2>

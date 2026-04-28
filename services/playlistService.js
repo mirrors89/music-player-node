@@ -9,6 +9,8 @@ class PlaylistService {
    * Add a new song to the playlist
    */
   addSong(youtubeSearchResult, requester = null) {
+    const wasQueueEmpty = this.getUnplayedCount() === 0;
+
     const maxOrder = Song.getMaxPlayOrder();
     const playOrder = maxOrder + 1;
 
@@ -25,6 +27,19 @@ class PlaylistService {
 
     // Broadcast update to all connected clients
     this.broadcastUpdate();
+
+    // Notify clients that playback can resume after an idle queue
+    if (wasQueueEmpty && this.io) {
+      this.io.emit('playlist-resume', {
+        song: {
+          id: song.id,
+          youtubeId: song.youtubeId,
+          title: song.title,
+          channelTitle: song.channelTitle,
+          playOrder: song.playOrder
+        }
+      });
+    }
 
     return song;
   }
